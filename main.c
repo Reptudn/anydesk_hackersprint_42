@@ -58,77 +58,69 @@ struct file_content   read_entire_file(char* filename)
 // returns offset
 int find_header(struct bmp_header* header, struct file_content *content, int header_color[3], int start)
 {
-	int found = -1;
 	unsigned int i = start;
-	for (; i < (header->width * header->height) * 4 || i < header->file_size; i += 4)
+	unsigned int limit = (header->width * header->height) * 4 < header->file_size ? (header->width * header->height) * 4 : header->file_size;
+	for (; i < limit; i += 4)
 	{
-		// printf ("Pixel %d: %d,%d,%d\n", i, (unsigned char)content->data[i], (unsigned char)content->data[i + 1], (unsigned char)content->data[i + 2]);
 		int z = 0;
 		for (; z < 3; z++)
 		{
 			if (header_color[z] < 0)
-			{
-				printf("skipping cuz ignore\n");
 				continue;
-			}
 			if ((unsigned char)content->data[i + z] != header_color[z])
 				break;
 		}
 		if (z == 3)
-		{
-
-			found = i;
-			break;
-		}
+			return i;
 	}
-	return found;
+	return -1;
 }
 
 void decoder(struct bmp_header* header, struct file_content *content)
 {
-	if (!(header->signature[0] == 'B' && header->signature[1] == 'M'))
-	{
-		PRINT_ERROR("Signature not BM.");
-		return;
-	}
-	int header_color_start[3] = {127, 188, 217};
-	int header_offset = find_header(header, content, header_color_start, header->data_offset);
-	if (header_offset == -1)
-	{
-		PRINT_ERROR("Didn't find header start");
-		return;
-	}
-	// printf("Header starts at: %d\n", header_offset);
-	
-	// printf("Header start cols: b:%d g:%d r:%d\n", (unsigned char)content->data[header_offset],(unsigned char)content->data[header_offset + 1],(unsigned char)content->data[header_offset + 2]);
+    if (!(header->signature[0] == 'B' && header->signature[1] == 'M'))
+    {
+        PRINT_ERROR("Signature not BM.");
+        return;
+    }
 
-	int header_end = header_offset + (header->width * 28) + 28;
+    int header_color_start[3] = {127, 188, 217};
+    int header_offset = find_header(header, content, header_color_start, header->data_offset);
+    if (header_offset == -1)
+    {
+        PRINT_ERROR("Didn't find header start");
+        return;
+    }
 
-	// printf("Header ends at: %d\n", header_end);
-	int content_len = (unsigned char)content->data[header_end] + (unsigned char)content->data[header_end + 2];
-	// printf("content len is: %d\n", content_len);
+    int header_end = header_offset + (header->width * 28) + 28;
+    int content_len = (unsigned char)content->data[header_end] + (unsigned char)content->data[header_end + 2];
 
-	// printf("Len vals are: b:%d g:%d r:%d\n", (unsigned char)content->data[header_end], (unsigned char)content->data[header_end + 1], (unsigned char)content->data[header_end + 2]);
+    int i = header_end - 20 - (8 * header->width);
+    int written = 0;
+    char buffer[4096];
+    int buffer_pos = 0;
 
-	int i = header_end - 20 - (8 * header->width);
-	int written = 0;
-	while (i > 0 && written <= content_len)
-	{
-		for (int p = 0; p < 6 * 4 && written < content_len; p++)
-		{
-			unsigned char byte = content->data[i + p];
-			if (byte == 0) continue;
-			write(1, &byte, 1);
-			written++;
+    while (i > 0 && written < content_len)
+    {
+        for (int p = 0; p < 6 * 4 && written < content_len; p++)
+        {
+            unsigned char byte = content->data[i + p];
+            if (byte != 0)
+            {
+                buffer[buffer_pos++] = byte;
+                written++;
+                if (buffer_pos == sizeof(buffer))
+                {
+                    write(1, buffer, buffer_pos);
+                    buffer_pos = 0;
+                }
+            }
+        }
+        i -= header->width * 4;
+    }
 
-		}
-		i -= header->width * 4;
-	}
-
-	if (written != content_len)
-		printf("\nWritten %d/%d", written - 1, content_len);
-	// printf("\n\nWidth: %d\n", content->size / (header->height * 4));
-	// printf("Height: %d\n", content->size / (header->width * 4));
+    if (buffer_pos > 0)
+        write(1, buffer, buffer_pos);
 }
 
 int main(int argc, char** argv)
