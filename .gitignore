@@ -1,3 +1,5 @@
 decode
 *.a
 *.out
+*.bmp
+imgs/*
