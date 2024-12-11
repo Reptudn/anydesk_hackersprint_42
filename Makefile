@@ -10,5 +10,8 @@ fclean:
 
 re: fclean all
 
-run: all
+42: all
 	./$(TARGET) imgs/42_logo.bmp
+
+cave: all
+	./$(TARGET) imgs/cave.bmp

@@ -98,29 +98,30 @@ void decoder(struct bmp_header* header, struct file_content *content)
 		PRINT_ERROR("Didn't find header start");
 		return;
 	}
-	printf("Header starts at: %d\n", header_offset);
+	// printf("Header starts at: %d\n", header_offset);
 	
-	printf("Header start cols: b:%d g:%d r:%d\n", (unsigned char)content->data[header_offset],(unsigned char)content->data[header_offset + 1],(unsigned char)content->data[header_offset + 2]);
+	// printf("Header start cols: b:%d g:%d r:%d\n", (unsigned char)content->data[header_offset],(unsigned char)content->data[header_offset + 1],(unsigned char)content->data[header_offset + 2]);
 
-	int header_end = header_offset + (7 * header->width * 4) + 7 * 4;
+	int header_end = header_offset + (header->width * 28) + 28;
 
-	printf("Header ends at: %d\n", header_end);
+	// printf("Header ends at: %d\n", header_end);
 	int content_len = (unsigned char)content->data[header_end] + (unsigned char)content->data[header_end + 2];
-	printf("content len is: %d\n", content_len);
+	// printf("content len is: %d\n", content_len);
 
-	printf("Len vals are: b:%d g:%d r:%d\n", (unsigned char)content->data[header_end], (unsigned char)content->data[header_end + 1], (unsigned char)content->data[header_end + 2]);
+	// printf("Len vals are: b:%d g:%d r:%d\n", (unsigned char)content->data[header_end], (unsigned char)content->data[header_end + 1], (unsigned char)content->data[header_end + 2]);
 
-	int i = header_end - (5 * 4) - (2 * header->width * 4);
+	int i = header_end - 20 - (8 * header->width);
 	int written = 0;
-	while (i > 0 && written < content_len + 1)
+	while (i > 0 && written <= content_len)
 	{
-		for (int p = 0; p <= 5 * 4; p++)
+		for (int p = 0; p < 6 * 4 && written <= content_len; p++)
 		{
-			if (p + 1 % 4 != 0)
-			{
-				write(1, (content->data + i + p), 1);
-				written++;
-			}
+			if (p + 1 % 4 == 0)
+				continue;
+			write(1, (content->data + i + p), 1);
+			written++;
+			// printf("Written: %d\n", written);
+			
 		}
 		i -= header->width * 4;
 	}
@@ -145,7 +146,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 	struct bmp_header* header = (struct bmp_header*) file_content.data;
-	printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
+	// printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
 	decoder(header, &file_content);
 	return 0;
 }
