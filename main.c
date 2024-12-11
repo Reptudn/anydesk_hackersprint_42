@@ -55,6 +55,82 @@ struct file_content   read_entire_file(char* filename)
 	return (struct file_content){file_data, file_size};
 }
 
+// returns offset
+int find_header(struct bmp_header* header, struct file_content *content, int header_color[3], int start)
+{
+	int found = -1;
+	unsigned int i = start;
+	for (; i < (header->width * header->height) * 4 || i < header->file_size; i += 4)
+	{
+		// printf ("Pixel %d: %d,%d,%d\n", i, (unsigned char)content->data[i], (unsigned char)content->data[i + 1], (unsigned char)content->data[i + 2]);
+		int z = 0;
+		for (; z < 3; z++)
+		{
+			if (header_color[z] < 0)
+			{
+				printf("skipping cuz ignore\n");
+				continue;
+			}
+			if ((unsigned char)content->data[i + z] != header_color[z])
+				break;
+		}
+		if (z == 3)
+		{
+
+			found = i;
+			break;
+		}
+	}
+	return found;
+}
+
+void decoder(struct bmp_header* header, struct file_content *content)
+{
+	if (!(header->signature[0] == 'B' && header->signature[1] == 'M'))
+	{
+		PRINT_ERROR("Signature not BM.");
+		return;
+	}
+	int header_color_start[3] = {127, 188, 217};
+	int header_offset = find_header(header, content, header_color_start, header->data_offset);
+	if (header_offset == -1)
+	{
+		PRINT_ERROR("Didn't find header start");
+		return;
+	}
+	printf("Header starts at: %d\n", header_offset);
+	
+	printf("Header start cols: b:%d g:%d r:%d\n", (unsigned char)content->data[header_offset],(unsigned char)content->data[header_offset + 1],(unsigned char)content->data[header_offset + 2]);
+
+	int header_end = header_offset + (7 * header->width * 4) + 7 * 4;
+
+	printf("Header ends at: %d\n", header_end);
+	int content_len = (unsigned char)content->data[header_end] + (unsigned char)content->data[header_end + 2];
+	printf("content len is: %d\n", content_len);
+
+	printf("Len vals are: b:%d g:%d r:%d\n", (unsigned char)content->data[header_end], (unsigned char)content->data[header_end + 1], (unsigned char)content->data[header_end + 2]);
+
+	int i = header_end - (5 * 4) - (2 * header->width * 4);
+	int written = 0;
+	while (i > 0 && written < content_len + 1)
+	{
+		for (int p = 0; p <= 5 * 4; p++)
+		{
+			if (p + 1 % 4 != 0)
+			{
+				write(1, (content->data + i + p), 1);
+				written++;
+			}
+		}
+		i -= header->width * 4;
+	}
+
+	// if (written != content_len)
+	// 	printf("\nWritten only %d/%d", written, content_len);
+	// printf("\n\nWidth: %d\n", content->size / (header->height * 4));
+	// printf("Height: %d\n", content->size / (header->width * 4));
+}
+
 int main(int argc, char** argv)
 {
 	if (argc != 2)
@@ -70,5 +146,6 @@ int main(int argc, char** argv)
 	}
 	struct bmp_header* header = (struct bmp_header*) file_content.data;
 	printf("signature: %.2s\nfile_size: %u\ndata_offset: %u\ninfo_header_size: %u\nwidth: %u\nheight: %u\nplanes: %i\nbit_per_px: %i\ncompression_type: %u\ncompression_size: %u\n", header->signature, header->file_size, header->data_offset, header->info_header_size, header->width, header->height, header->number_of_planes, header->bit_per_pixel, header->compression_type, header->compressed_image_size);
+	decoder(header, &file_content);
 	return 0;
 }
