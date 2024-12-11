@@ -114,20 +114,19 @@ void decoder(struct bmp_header* header, struct file_content *content)
 	int written = 0;
 	while (i > 0 && written <= content_len)
 	{
-		for (int p = 0; p < 6 * 4 && written <= content_len; p++)
+		for (int p = 0; p < 6 * 4 && written < content_len; p++)
 		{
-			if (p + 1 % 4 == 0)
-				continue;
-			write(1, (content->data + i + p), 1);
+			unsigned char byte = content->data[i + p];
+			if (byte == 0) continue;
+			write(1, &byte, 1);
 			written++;
-			// printf("Written: %d\n", written);
-			
+
 		}
 		i -= header->width * 4;
 	}
 
-	// if (written != content_len)
-	// 	printf("\nWritten only %d/%d", written, content_len);
+	if (written != content_len)
+		printf("\nWritten %d/%d", written - 1, content_len);
 	// printf("\n\nWidth: %d\n", content->size / (header->height * 4));
 	// printf("Height: %d\n", content->size / (header->width * 4));
 }
